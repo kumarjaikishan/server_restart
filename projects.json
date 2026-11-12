@@ -7,17 +7,17 @@
     "icon": "building"
   },
   {
-    "id": "gf_prod",
-    "name": "Goodfeel Production",
-    "directory": "/var/www/goodfeel_main",
-    "scriptPath": "/root/scripts/goodfeel_prod.sh",
-    "icon": "sparkles"
-  },
-  {
     "id": "gf_dev",
     "name": "Goodfeel Development",
     "directory": "/var/www/goodfeel_dev",
     "scriptPath": "/root/scripts/goodfeel_dev.sh",
     "icon": "building"
+  },
+  {
+    "id": "gf_prod",
+    "name": "Goodfeel Production",
+    "directory": "/var/www/goodfeel_main",
+    "scriptPath": "/root/scripts/goodfeel_prod.sh",
+    "icon": "sparkles"
   }
 ]
