@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oracle VPS Project Deployment</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: radial-gradient(circle at 50% 20%, #1e1e38 0%, #0f1016 100%);
+      min-height: 100vh;
+    }
+    /* Custom scrollbar for terminal */
+    .terminal-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+    .terminal-scroll::-webkit-scrollbar-track {
+      background: #0d1117;
+    }
+    .terminal-scroll::-webkit-scrollbar-thumb {
+      background: #232936;
+      border-radius: 3px;
+    }
+    .terminal-scroll::-webkit-scrollbar-thumb:hover {
+      background: #384252;
+    }
+    .card-active {
+      border-color: #6366f1 !important;
+      background-color: #f5f3ff !important;
+    }
+    .pulse-dot {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .4; }
+    }
+    /* Sonner Toast styling */
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+    .sonner-toast {
+      pointer-events: auto;
+      background: #ffffff;
+      color: #0f172a;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 13.5px;
+      font-weight: 500;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.15);
+      border: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 290px;
+      max-width: 420px;
+      animation: toastIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      transition: all 0.2s ease;
+    }
+    .sonner-toast.dark {
+      background: #18181b;
+      color: #fafafa;
+      border-color: #27272a;
+    }
+    @keyframes toastIn {
+      from {
+        opacity: 0;
+        transform: translateY(-12px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+    @keyframes toastOut {
+      from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+      to {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.95);
+      }
+    }
+  </style>
+</head>
+<body class="p-4 md:p-8 flex items-center justify-center">
+
+  <!-- Sonner Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Modal / Main Container Window -->
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden border border-slate-100 flex flex-col transition-all">
+    
+    <!-- Modal Header -->
+    <div class="p-6 md:p-7 border-b border-slate-100 flex items-start justify-between">
+      <div class="flex items-start gap-4">
+        <div class="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center text-xl flex-shrink-0 shadow-sm">
+          <i class="fa-solid fa-rocket"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2.5">
+            <h1 class="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">Oracle VPS Project Deployment</h1>
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 pulse-dot"></span>
+              LIVE
+            </span>
+          </div>
+          <p class="text-xs md:text-sm text-slate-500 mt-1">Execute Git pull, Rsync build, NPM install & PM2 reload directly on Oracle VPS</p>
+        </div>
+      </div>
+      <button class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-50 transition" title="Close">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="p-6 md:p-7 space-y-6">
+
+      <!-- Target Project Header -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-500">
+            SELECT TARGET PROJECT (<span id="projectCount">0</span> AVAILABLE)
+          </span>
+          <button onclick="openAddModal()" class="text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1 ml-2">
+            <i class="fa-solid fa-plus-circle"></i> Add Server/Project
+          </button>
+        </div>
+        <div id="currentScriptTag" class="text-xs font-mono text-indigo-600 bg-indigo-50/80 px-2.5 py-1 rounded-md border border-indigo-100 flex items-center gap-1.5 self-start sm:self-auto truncate max-w-sm">
+          <i class="fa-regular fa-file-code"></i>
+          <span class="truncate" id="scriptHeaderPath">Select a project</span>
+        </div>
+      </div>
+
+      <!-- Project Grid -->
+      <div id="projectGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- Execution Terminal Window -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2 text-xs font-semibold text-slate-700">
+            <i class="fa-solid fa-terminal text-slate-400"></i>
+            <span>Execution Output Logs</span>
+            <span id="executingIndicator" class="hidden text-xs text-indigo-600 font-medium flex items-center gap-1.5 ml-2">
+              <i class="fa-solid fa-circle-notch fa-spin"></i> Running script...
+            </span>
+          </div>
+          <button onclick="clearTerminal()" class="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
+            <i class="fa-regular fa-trash-can"></i> Clear
+          </button>
+        </div>
+
+        <div id="terminal" class="bg-[#0b0f19] border border-slate-800 rounded-xl p-4 font-mono text-xs text-slate-300 h-52 overflow-y-auto terminal-scroll shadow-inner">
+          <div class="text-slate-500 italic" id="terminalPlaceholder">
+            Select a project above and click "Deploy" to run its .sh script on the VPS.
+          </div>
+        </div>
+      </div>
+
+      <!-- Production Script Path Banner -->
+      <div class="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 flex items-start gap-2.5 text-xs text-amber-900">
+        <i class="fa-solid fa-circle-exclamation text-amber-600 mt-0.5 text-sm"></i>
+        <div class="leading-relaxed">
+          <span class="font-semibold text-amber-800">Production Script Path:</span> 
+          Executes <span id="bannerScriptPath" class="font-mono bg-amber-100/70 text-amber-900 px-1.5 py-0.5 rounded font-medium">/home/ubuntu/scripts/accusoft.sh</span> on Oracle Linux VPS.
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Modal Footer Actions -->
+    <div class="p-5 md:px-7 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between">
+      <button onclick="clearTerminal()" class="flex items-center gap-2 text-xs font-medium text-slate-600 hover:text-slate-900 px-3 py-2 rounded-lg hover:bg-slate-200/60 transition">
+        <i class="fa-solid fa-arrows-rotate"></i> Clear Terminal
+      </button>
+
+      <div class="flex items-center gap-3">
+        <button class="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-800 rounded-lg hover:bg-slate-200/60 transition">
+          Close
+        </button>
+        <button id="deployBtn" onclick="triggerDeploy()" class="flex items-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 rounded-xl shadow-sm shadow-indigo-200 transition disabled:opacity-50 disabled:cursor-not-allowed">
+          <i class="fa-solid fa-rocket"></i>
+          <span id="deployBtnText">Deploy Selected</span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Add New Server / Project Dialog -->
+  <div id="addModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-slate-100 overflow-hidden">
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+        <h3 class="font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-server text-indigo-600"></i> Add New Server / Script
+        </h3>
+        <button onclick="closeAddModal()" class="text-slate-400 hover:text-slate-600 p-1">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <form id="addProjectForm" onsubmit="saveNewProject(event)" class="p-5 space-y-4 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Server / Project Name</label>
+          <input type="text" id="new_name" placeholder="e.g. Accusoft or Admin Portal" required class="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-500 font-sans text-sm">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Directory on VPS</label>
+          <input type="text" id="new_dir" placeholder="e.g. /var/www/my-project" class="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-500 font-mono">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">VPS Bash Script Path (.sh)</label>
+          <input type="text" id="new_script" placeholder="e.g. /home/ubuntu/scripts/deploy.sh" required class="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-500 font-mono">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Icon Style</label>
+          <select id="new_icon" class="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-500 font-sans">
+            <option value="sparkles">✨ Sparkles</option>
+            <option value="building">🏢 Building</option>
+            <option value="globe">🌐 Globe</option>
+            <option value="gamepad">🎮 Gamepad</option>
+            <option value="briefcase">💼 Briefcase</option>
+            <option value="trending-up">📈 Trending Up</option>
+            <option value="graduation-cap">🎓 Graduation Cap</option>
+            <option value="code">💻 Code</option>
+          </select>
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button type="button" onclick="closeAddModal()" class="px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700">Save Project</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Sonner & Client Application Logic -->
+  <script>
+    // --- Sonner Toast Implementation ---
+    const toast = {
+      create(message, { type = 'default', duration = 3500 } = {}) {
+        const container = document.getElementById('toast-container');
+        const el = document.createElement('div');
+        el.className = 'sonner-toast';
+
+        let iconHtml = '';
+        if (type === 'success') {
+          iconHtml = '<i class="fa-solid fa-circle-check text-emerald-500 text-base"></i>';
+        } else if (type === 'error') {
+          iconHtml = '<i class="fa-solid fa-circle-xmark text-rose-500 text-base"></i>';
+        } else if (type === 'loading') {
+          iconHtml = '<i class="fa-solid fa-circle-notch fa-spin text-indigo-500 text-base"></i>';
+        } else {
+          iconHtml = '<i class="fa-solid fa-circle-info text-blue-500 text-base"></i>';
+        }
+
+        el.innerHTML = `
+          <div class="flex-shrink-0">${iconHtml}</div>
+          <div class="flex-1 text-slate-800">${message}</div>
+        `;
+
+        container.appendChild(el);
+
+        const dismiss = () => {
+          el.style.animation = 'toastOut 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+          setTimeout(() => el.remove(), 200);
+        };
+
+        if (duration > 0) {
+          setTimeout(dismiss, duration);
+        }
+
+        return { dismiss, update: (newMsg, newType) => {
+          el.innerHTML = `
+            <div class="flex-shrink-0">
+              ${newType === 'success' ? '<i class="fa-solid fa-circle-check text-emerald-500 text-base"></i>' : 
+                newType === 'error' ? '<i class="fa-solid fa-circle-xmark text-rose-500 text-base"></i>' : 
+                '<i class="fa-solid fa-circle-notch fa-spin text-indigo-500 text-base"></i>'}
+            </div>
+            <div class="flex-1 text-slate-800">${newMsg}</div>
+          `;
+          if (newType !== 'loading') {
+            setTimeout(dismiss, 3000);
+          }
+        }};
+      },
+      success(msg, opts) { return this.create(msg, { ...opts, type: 'success' }); },
+      error(msg, opts) { return this.create(msg, { ...opts, type: 'error' }); },
+      loading(msg, opts) { return this.create(msg, { ...opts, type: 'loading', duration: 0 }); },
+      info(msg, opts) { return this.create(msg, { ...opts, type: 'info' }); }
+    };
+
+    // State
+    let projects = [];
+    let selectedProjectId = null;
+    let isDeploying = false;
+
+    const iconMap = {
+      'sparkles': 'fa-solid fa-wand-magic-sparkles',
+      'building': 'fa-regular fa-building',
+      'globe': 'fa-solid fa-globe',
+      'code': 'fa-solid fa-code',
+      'gamepad': 'fa-solid fa-gamepad',
+      'briefcase': 'fa-solid fa-briefcase',
+      'trending-up': 'fa-solid fa-arrow-trend-up',
+      'graduation-cap': 'fa-solid fa-graduation-cap',
+      'terminal': 'fa-solid fa-terminal'
+    };
+
+    async function loadProjects() {
+      try {
+        const res = await fetch('/api/projects');
+        projects = await res.json();
+        document.getElementById('projectCount').innerText = projects.length;
+        renderProjectGrid();
+        
+        if (projects.length > 0 && !selectedProjectId) {
+          selectProject(projects[0].id);
+        }
+      } catch (err) {
+        toast.error('Failed to load projects list');
+      }
+    }
+
+    function renderProjectGrid() {
+      const container = document.getElementById('projectGrid');
+      container.innerHTML = '';
+
+      projects.forEach(p => {
+        const isSelected = p.id === selectedProjectId;
+        const iconClass = iconMap[p.icon] || 'fa-solid fa-server';
+
+        const card = document.createElement('div');
+        card.className = `p-3.5 rounded-xl border cursor-pointer transition-all duration-150 flex items-center justify-between relative group ${
+          isSelected 
+            ? 'card-active ring-1 ring-indigo-500 shadow-sm' 
+            : 'border-slate-200/80 bg-white hover:border-slate-300 hover:bg-slate-50/50'
+        }`;
+        card.onclick = () => selectProject(p.id);
+
+        card.innerHTML = `
+          <div class="flex items-center gap-2.5 truncate">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm ${isSelected ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500 group-hover:text-slate-700'}">
+              <i class="${iconClass}"></i>
+            </div>
+            <div class="truncate">
+              <div class="font-semibold text-xs text-slate-800 truncate">${p.name}</div>
+              <div class="font-mono text-[10px] text-slate-400 truncate">${p.directory || p.scriptPath}</div>
+            </div>
+          </div>
+          <div>
+            ${isSelected ? '<i class="fa-regular fa-circle-check text-indigo-600 text-sm"></i>' : ''}
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    function selectProject(id) {
+      selectedProjectId = id;
+      const project = projects.find(p => p.id === id);
+      if (!project) return;
+
+      renderProjectGrid();
+
+      document.getElementById('scriptHeaderPath').innerText = `Script: ${project.scriptPath}`;
+      document.getElementById('bannerScriptPath').innerText = project.scriptPath;
+      document.getElementById('deployBtnText').innerText = `Deploy ${project.name}`;
+    }
+
+    function appendTerminal(line, isError = false) {
+      const placeholder = document.getElementById('terminalPlaceholder');
+      if (placeholder) placeholder.remove();
+
+      const term = document.getElementById('terminal');
+      const div = document.createElement('div');
+      div.className = `leading-relaxed font-mono ${isError ? 'text-rose-400' : 'text-slate-200'}`;
+      div.innerText = line;
+      term.appendChild(div);
+      term.scrollTop = term.scrollHeight;
+    }
+
+    function clearTerminal() {
+      const term = document.getElementById('terminal');
+      term.innerHTML = '<div class="text-slate-500 italic" id="terminalPlaceholder">Terminal cleared. Ready for next command.</div>';
+    }
+
+    function triggerDeploy() {
+      if (isDeploying) return;
+      const project = projects.find(p => p.id === selectedProjectId);
+      if (!project) {
+        toast.error('Please select a project first');
+        return;
+      }
+
+      isDeploying = true;
+      const deployBtn = document.getElementById('deployBtn');
+      deployBtn.disabled = true;
+      document.getElementById('executingIndicator').classList.remove('hidden');
+
+      const toastId = toast.loading(`Triggering deployment for ${project.name}...`);
+      appendTerminal(`\n--- Starting Execution: ${new Date().toLocaleTimeString()} ---`);
+      appendTerminal(`Target: ${project.name} (${project.scriptPath})`);
+
+      // Connect to Server-Sent Events stream
+      const eventSource = new EventSource(`/api/execute/${project.id}`);
+
+      eventSource.addEventListener('start', (e) => {
+        const data = JSON.parse(e.data);
+        appendTerminal(`[INFO] ${data.message}`);
+      });
+
+      eventSource.addEventListener('output', (e) => {
+        const data = JSON.parse(e.data);
+        appendTerminal(data.text, data.isError);
+      });
+
+      eventSource.addEventListener('complete', (e) => {
+        const data = JSON.parse(e.data);
+        appendTerminal(`\n[RESULT] ${data.message}\n`);
+        eventSource.close();
+        
+        isDeploying = false;
+        deployBtn.disabled = false;
+        document.getElementById('executingIndicator').classList.add('hidden');
+
+        if (data.code === 0) {
+          toastId.update(`${project.name} deployed successfully!`, 'success');
+        } else {
+          toastId.update(`Deployment failed with code ${data.code}`, 'error');
+        }
+      });
+
+      eventSource.onerror = (err) => {
+        appendTerminal(`[ERROR] Connection to script stream interrupted.`);
+        eventSource.close();
+        isDeploying = false;
+        deployBtn.disabled = false;
+        document.getElementById('executingIndicator').classList.add('hidden');
+        toastId.update('Deployment connection error', 'error');
+      };
+    }
+
+    // Modal controls for feeding new servers
+    function openAddModal() {
+      document.getElementById('addModal').classList.remove('hidden');
+    }
+
+    function closeAddModal() {
+      document.getElementById('addModal').classList.add('hidden');
+    }
+
+    async function saveNewProject(e) {
+      e.preventDefault();
+      const name = document.getElementById('new_name').value.trim();
+      const directory = document.getElementById('new_dir').value.trim();
+      const scriptPath = document.getElementById('new_script').value.trim();
+      const icon = document.getElementById('new_icon').value;
+
+      try {
+        const res = await fetch('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, directory, scriptPath, icon })
+        });
+
+        if (res.ok) {
+          toast.success(`Server project "${name}" added!`);
+          closeAddModal();
+          document.getElementById('addProjectForm').reset();
+          await loadProjects();
+          selectProject(name.toLowerCase().replace(/[^a-z0-9]/g, '_'));
+        } else {
+          toast.error('Failed to save project');
+        }
+      } catch (err) {
+        toast.error('Network error saving project');
+      }
+    }
+
+    // Init
+    loadProjects();
+  </script>
+</body>
+</html>
+
