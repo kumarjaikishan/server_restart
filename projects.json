@@ -1,5 +1,12 @@
 [
   {
+    "id": "self",
+    "name": "Self",
+    "directory": "/var/www/goodfeel_dev",
+    "scriptPath": "/root/scripts/restarter.sh",
+    "icon": "building"
+  },
+  {
     "id": "gf_prod",
     "name": "Goodfeel Production",
     "directory": "/var/www/goodfeel_main",
